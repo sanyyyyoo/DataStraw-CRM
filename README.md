@@ -6,7 +6,7 @@ A web-based customer support ticketing CRM built with **Google Apps Script**, **
 |----------|------|
 | **Live app** | [Customer Support CRM (deployed)](https://script.google.com/macros/s/AKfycbzjApDExrlmDw4yA-z_MYL_AMCbLc28AgenOrG15LMG8ITsijc7PaoChKg3oydlJksJ/exec) |
 | **GitHub** | [sanyyyyoo/DataStraw-CRM](https://github.com/sanyyyyoo/DataStraw-CRM) |
-| **Demo video** | _Add your Loom/YouTube link here_ |
+| **Demo video** | (https://drive.google.com/drive/folders/1oHunl3nTrPurle2bam3IRPhHA_SyNw-3)|
 
 ---
 
