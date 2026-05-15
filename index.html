@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Support CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <style><?!= include('styles'); ?></style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen lg:h-screen lg:overflow-hidden">
+
+  <div id="notificationHost" class="fixed top-4 right-4 z-[100] space-y-2"></div>
+
+  <div class="max-w-[1600px] mx-auto p-4 md:p-6 lg:h-full lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden">
+
+    <!-- Header -->
+    <header class="flex flex-wrap items-start justify-between gap-4 mb-5">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Customer Support CRM</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Manage and track support tickets</p>
+      </div>
+      <button id="newTicketButton" type="button"
+        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-lg shadow-sm transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Ticket
+      </button>
+    </header>
+
+    <!-- Search + filters bar -->
+    <div class="flex flex-wrap items-center gap-3 mb-5">
+      <div class="flex-1 min-w-[240px] relative">
+        <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="searchInput" type="search"
+          placeholder="Search by ticket ID, customer name, email, phone, or order ID..."
+          class="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      </div>
+      <button id="filtersButton" type="button"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+        Filters
+      </button>
+      <div class="inline-flex rounded-full border border-gray-200 bg-white p-1 text-sm font-medium" id="viewTabs">
+        <button type="button" data-view="All Tickets" class="view-tab px-4 py-1.5 rounded-full bg-blue-600 text-white">All Tickets</button>
+        <button type="button" data-view="Active Tickets" class="view-tab px-4 py-1.5 rounded-full text-gray-600 hover:bg-gray-50">Active Only</button>
+        <button type="button" data-view="Team Buckets" class="view-tab px-4 py-1.5 rounded-full text-gray-600 hover:bg-gray-50">Team Buckets</button>
+      </div>
+      <input type="hidden" id="viewMode" value="All Tickets" />
+    </div>
+
+    <div id="filterPanel" class="hidden mb-5 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div class="flex flex-wrap gap-3 items-end">
+        <label class="text-xs font-medium text-gray-500">Status
+          <select id="statusFilter" class="mt-1 block w-40 rounded-lg border border-gray-200 px-3 py-2 text-sm"></select>
+        </label>
+        <label class="text-xs font-medium text-gray-500">Channel
+          <select id="channelFilter" class="mt-1 block w-40 rounded-lg border border-gray-200 px-3 py-2 text-sm"></select>
+        </label>
+        <label class="text-xs font-medium text-gray-500">From
+          <input type="date" id="startDate" class="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+        </label>
+        <label class="text-xs font-medium text-gray-500">To
+          <input type="date" id="endDate" class="mt-1 block rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+        </label>
+        <button id="searchButton" type="button" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Apply</button>
+      </div>
+    </div>
+
+    <!-- 3-column layout -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 flex-1 min-h-0 lg:overflow-hidden">
+
+      <!-- Left: ticket list -->
+      <section class="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-0 lg:h-full overflow-hidden max-h-[50vh] lg:max-h-none">
+        <div class="shrink-0 px-4 py-3 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-900">Tickets (<span id="ticketsCount">0</span>)</h2>
+        </div>
+        <div id="ticketList" class="panel-scroll flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
+          <div class="text-center text-gray-400 text-sm py-12">Loading tickets...</div>
+        </div>
+      </section>
+
+      <!-- Center: detail -->
+      <section class="lg:col-span-5 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col min-h-0 lg:h-full overflow-hidden min-h-[280px] lg:min-h-0">
+        <div class="shrink-0 px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-900">Ticket Details</h2>
+          <div class="flex gap-2">
+            <button id="editTicketButton" type="button" class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              Edit
+            </button>
+            <button id="saveTicketButton" type="button" class="hidden px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Save</button>
+            <button id="cancelEditButton" type="button" class="hidden px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+        <div id="ticketDetail" class="panel-scroll flex-1 min-h-0 overflow-y-auto p-5 text-gray-500 text-sm">
+          <div class="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+            <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <p class="text-sm font-medium">Select a ticket from the list</p>
+            <p class="text-xs mt-1">Details will appear here</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: insights -->
+      <section class="lg:col-span-4 flex flex-col min-h-0 lg:h-full overflow-hidden max-h-[50vh] lg:max-h-none">
+        <div id="insightsScroll" class="panel-scroll flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h2 class="font-semibold text-gray-900 mb-4">Insights &amp; Analytics</h2>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <p class="text-xs text-blue-600 font-medium">Total Tickets</p>
+              <p id="totalTickets" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+            </div>
+            <div class="p-3 rounded-xl bg-green-50 border border-green-100">
+              <p class="text-xs text-green-600 font-medium">Resolved</p>
+              <p id="resolvedTickets" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+            </div>
+            <div class="p-3 rounded-xl bg-orange-50 border border-orange-100">
+              <p class="text-xs text-orange-600 font-medium">Active</p>
+              <p id="activeTickets" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+            </div>
+            <div class="p-3 rounded-xl bg-red-50 border border-red-100">
+              <p class="text-xs text-red-600 font-medium">High Priority</p>
+              <p id="highPriorityTickets" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl bg-purple-50 border border-purple-100 mb-4">
+            <p class="text-xs text-purple-600 font-medium">Escalated</p>
+            <p id="escalatedTickets" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+          </div>
+          <button id="exportCsvButton" type="button" class="w-full py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Export CSV</button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h3 class="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            Status Breakdown
+          </h3>
+          <div id="statusBreakdown" class="space-y-2 text-sm"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h3 class="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Channel Distribution
+          </h3>
+          <div id="channelDistribution" class="space-y-2 text-sm"></div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h3 class="font-semibold text-gray-900 text-sm mb-3">Top Query Themes</h3>
+          <div id="topQueryThemes" class="space-y-2 text-sm"></div>
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <p class="text-xs font-medium text-gray-500 mb-2">Resolution Rate</p>
+            <p id="resolutionRateText" class="text-lg font-bold text-gray-900">0%</p>
+            <p id="resolutionRateSub" class="text-xs text-gray-500 mb-2">0 of 0 tickets</p>
+            <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div id="resolutionRateBar" class="h-full bg-blue-600 rounded-full transition-all" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="selectedSummary" class="hidden bg-white rounded-xl border border-blue-200 shadow-sm p-4 bg-blue-50/50">
+          <p class="text-xs font-medium text-gray-500 mb-2">Selected Ticket</p>
+          <p id="summaryId" class="font-semibold text-gray-900"></p>
+          <p id="summaryCustomer" class="text-sm text-gray-600"></p>
+          <p id="summaryCreated" class="text-xs text-gray-500 mt-1"></p>
+        </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h3 class="text-lg font-semibold">New Support Ticket</h3>
+        <button id="closeModalButton" type="button" class="p-1 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-xl leading-none">&times;</button>
+      </div>
+      <div class="overflow-y-auto px-5 py-4">
+        <form id="ticketForm" class="space-y-4">
+          <label class="block text-sm font-medium text-gray-700">Customer Name
+            <input name="customerName" required class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Email
+            <input type="email" name="email" required class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Phone
+            <input type="tel" name="phone" required class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Order ID
+            <input name="orderId" class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Channel
+            <select name="channel" class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <option>WhatsApp</option><option>Instagram</option><option>Facebook</option><option>Email</option><option>Call</option>
+            </select>
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Category
+            <select name="category" class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <option>Order Issue</option><option>Billing</option><option>Technical Problem</option><option>Product Question</option><option>Other</option>
+            </select>
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Issue Description
+            <textarea name="description" rows="3" required class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"></textarea>
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Chat Transcript
+            <textarea name="transcript" rows="2" class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"></textarea>
+          </label>
+          <label class="block text-sm font-medium text-gray-700">Attachment Link
+            <input name="attachments" placeholder="Google Drive link" class="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          </label>
+        </form>
+      </div>
+      <div class="flex justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
+        <button id="cancelModalButton" type="button" class="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg bg-white hover:bg-gray-50">Cancel</button>
+        <button id="submitTicketButton" type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Create Ticket</button>
+      </div>
+    </div>
+  </div>
+
+  <?!= include('utils'); ?>
+  <?!= include('ui'); ?>
+  <?!= include('modal'); ?>
+  <?!= include('tickets'); ?>
+  <?!= include('script'); ?>
+</body>
+</html>

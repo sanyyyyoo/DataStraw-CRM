@@ -1,0 +1,76 @@
+<script>
+function formatDate(dateString) {
+  if (!dateString) return '';
+  try {
+    const d = new Date(dateString);
+    return d.toLocaleDateString('en-CA');
+  } catch (e) {
+    return String(dateString).slice(0, 10);
+  }
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return '';
+  try {
+    const d = new Date(dateString);
+    return d.toLocaleDateString('en-CA') + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+}
+
+function showNotification(message, type) {
+  type = type || 'success';
+  const host = document.getElementById('notificationHost');
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(function () { el.remove(); }, 3200);
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getSubject(ticket) {
+  const d = (ticket.description || '').trim();
+  if (!d) return 'No subject';
+  return d.length > 72 ? d.slice(0, 72) + '…' : d;
+}
+
+function getPriority(ticket) {
+  if (ticket.priority) return ticket.priority;
+  if (ticket.escalation === 'Management') return 'High';
+  if (ticket.status === 'Pending') return 'Low';
+  return 'Medium';
+}
+
+function priorityClasses(p) {
+  if (p === 'High') return 'bg-orange-100 text-orange-700';
+  if (p === 'Low') return 'bg-gray-100 text-gray-600';
+  return 'bg-sky-100 text-sky-700';
+}
+
+function statusClasses(s) {
+  const m = {
+    'Pending': 'bg-amber-100 text-amber-800',
+    'In Progress': 'bg-blue-100 text-blue-700',
+    'Waiting on Customer': 'bg-orange-100 text-orange-700',
+    'Waiting on Third Party': 'bg-purple-100 text-purple-700',
+    'Resolved': 'bg-green-100 text-green-700'
+  };
+  return m[s] || 'bg-gray-100 text-gray-600';
+}
+
+function channelClasses() {
+  return 'bg-gray-100 text-gray-600';
+}
+</script>

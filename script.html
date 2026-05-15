@@ -1,0 +1,139 @@
+<script>
+const appState = {
+  tickets: [],
+  selectedTicketId: null,
+  selectedTicket: null,
+  editMode: false,
+  meta: null
+};
+
+window.addEventListener('DOMContentLoaded', function () {
+  attachListeners();
+  loadMeta();
+  loadTickets();
+});
+
+function attachListeners() {
+  document.getElementById('newTicketButton')?.addEventListener('click', openTicketModal);
+  document.getElementById('closeModalButton')?.addEventListener('click', closeTicketModal);
+  document.getElementById('cancelModalButton')?.addEventListener('click', closeTicketModal);
+  document.getElementById('submitTicketButton')?.addEventListener('click', submitTicketForm);
+  document.getElementById('searchButton')?.addEventListener('click', applyFilters);
+  document.getElementById('searchInput')?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') applyFilters();
+  });
+  document.getElementById('searchInput')?.addEventListener('input', debounce(applyFilters, 400));
+  document.getElementById('statusFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('channelFilter')?.addEventListener('change', applyFilters);
+  document.getElementById('startDate')?.addEventListener('change', applyFilters);
+  document.getElementById('endDate')?.addEventListener('change', applyFilters);
+  document.getElementById('exportCsvButton')?.addEventListener('click', exportCsv);
+  document.getElementById('editTicketButton')?.addEventListener('click', enterEditMode);
+  document.getElementById('saveTicketButton')?.addEventListener('click', saveTicketChanges);
+  document.getElementById('cancelEditButton')?.addEventListener('click', exitEditMode);
+  document.getElementById('filtersButton')?.addEventListener('click', function () {
+    document.getElementById('filterPanel')?.classList.toggle('hidden');
+  });
+  document.querySelectorAll('.view-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setViewMode(btn.getAttribute('data-view'));
+      applyFilters();
+    });
+  });
+}
+
+function debounce(fn, ms) {
+  var t;
+  return function () {
+    clearTimeout(t);
+    t = setTimeout(fn, ms);
+  };
+}
+
+function setViewMode(mode) {
+  var input = document.getElementById('viewMode');
+  if (input) input.value = mode || 'All Tickets';
+  document.querySelectorAll('.view-tab').forEach(function (btn) {
+    var active = btn.getAttribute('data-view') === mode;
+    btn.classList.toggle('bg-blue-600', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('text-gray-600', !active);
+    btn.classList.toggle('hover:bg-gray-50', !active);
+  });
+}
+
+function loadMeta() {
+  google.script.run
+    .withSuccessHandler(function (meta) {
+      appState.meta = meta;
+      populateMetaFilters(meta);
+    })
+    .withFailureHandler(function () {
+      showNotification('Failed to load metadata', 'error');
+    })
+    .getAppMeta();
+}
+
+function loadTickets() {
+  var params = {
+    query: document.getElementById('searchInput')?.value || '',
+    status: document.getElementById('statusFilter')?.value || '',
+    channel: document.getElementById('channelFilter')?.value || '',
+    viewMode: document.getElementById('viewMode')?.value || 'All Tickets',
+    startDate: document.getElementById('startDate')?.value || '',
+    endDate: document.getElementById('endDate')?.value || ''
+  };
+  google.script.run
+    .withSuccessHandler(function (result) {
+      if (!result.success) {
+        showNotification(result.error || 'Failed loading tickets', 'error');
+        return;
+      }
+      appState.tickets = result.tickets || [];
+      renderTicketList(appState.tickets);
+      renderInsights(result);
+      var hasSelection = appState.selectedTicketId && appState.tickets.some(function (t) {
+        return t.id === appState.selectedTicketId;
+      });
+      if (appState.tickets.length && !hasSelection) {
+        selectTicket(appState.tickets[0].id);
+      } else if (hasSelection) {
+        appState.selectedTicket = appState.tickets.find(function (t) {
+          return t.id === appState.selectedTicketId;
+        });
+        if (appState.selectedTicket && !appState.editMode) {
+          renderTicketDetailView(appState.selectedTicket);
+          showViewModeButtons();
+        }
+        renderTicketList(appState.tickets);
+      } else {
+        clearTicketDetail();
+      }
+    })
+    .withFailureHandler(function (err) {
+      showNotification(err.message || 'Server error', 'error');
+    })
+    .getTickets(params);
+}
+
+function exportCsv() {
+  if (!appState.tickets.length) {
+    showNotification('No tickets to export', 'error');
+    return;
+  }
+  var headers = ['Ticket ID', 'Customer Name', 'Email', 'Phone', 'Order ID', 'Status', 'Channel', 'Category', 'Description', 'Escalation', 'Created At'];
+  var rows = appState.tickets.map(function (t) {
+    return [t.id, t.customerName, t.email, t.phone, t.orderId, t.status, t.channel, t.category, t.description, t.escalation, t.createdAt];
+  });
+  var csv = [headers].concat(rows).map(function (row) {
+    return row.map(function (v) {
+      return '"' + String(v || '').replace(/"/g, '""') + '"';
+    }).join(',');
+  }).join('\n');
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'tickets.csv';
+  a.click();
+  showNotification('CSV exported');
+}
+</script>

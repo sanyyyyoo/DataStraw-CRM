@@ -1,0 +1,49 @@
+<script>
+function openTicketModal() {
+  document.getElementById('modalOverlay')?.classList.remove('hidden');
+  document.getElementById('ticketForm')?.reset();
+}
+
+function closeTicketModal() {
+  document.getElementById('modalOverlay')?.classList.add('hidden');
+  document.getElementById('ticketForm')?.reset();
+}
+
+function submitTicketForm() {
+  var form = document.getElementById('ticketForm');
+  if (!form || !form.checkValidity()) {
+    form?.reportValidity();
+    return;
+  }
+  var fd = new FormData(form);
+  var ticket = {
+    customerName: fd.get('customerName'),
+    email: fd.get('email'),
+    phone: fd.get('phone'),
+    orderId: fd.get('orderId') || '',
+    channel: fd.get('channel'),
+    category: fd.get('category'),
+    description: fd.get('description'),
+    transcript: fd.get('transcript'),
+    attachments: fd.get('attachments')
+  };
+  var btn = document.getElementById('submitTicketButton');
+  if (btn) { btn.textContent = 'Creating…'; btn.disabled = true; }
+  google.script.run
+    .withSuccessHandler(function (result) {
+      if (btn) { btn.textContent = 'Create Ticket'; btn.disabled = false; }
+      if (!result.success) {
+        showNotification(result.error || 'Failed to create ticket', 'error');
+        return;
+      }
+      closeTicketModal();
+      showNotification('Ticket created');
+      loadTickets();
+    })
+    .withFailureHandler(function (err) {
+      if (btn) { btn.textContent = 'Create Ticket'; btn.disabled = false; }
+      showNotification(err.message || 'Failed to create ticket', 'error');
+    })
+    .createTicket(ticket);
+}
+</script>
