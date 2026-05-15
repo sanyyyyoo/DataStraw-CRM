@@ -38,6 +38,7 @@ function submitTicketForm() {
       }
       closeTicketModal();
       showNotification('Ticket created');
+      appState.currentPage = 1;
       loadTickets();
     })
     .withFailureHandler(function (err) {

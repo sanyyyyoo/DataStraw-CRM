@@ -22,12 +22,33 @@ function populateSelect(id, values, placeholder) {
   });
 }
 
+function renderPagination(result) {
+  const total = result.total || 0;
+  const page = result.page || 1;
+  const pageSize = result.pageSize || 50;
+  const totalPages = result.totalPages || 1;
+  const start = total ? (page - 1) * pageSize + 1 : 0;
+  const end = Math.min(page * pageSize, total);
+  const pageInfo = document.getElementById('pageInfo');
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+  const pageSizeSelect = document.getElementById('pageSizeSelect');
+  if (pageInfo) {
+    pageInfo.textContent = total ? (start + '–' + end + ' of ' + total + ' · Page ' + page + '/' + totalPages) : 'No tickets';
+  }
+  if (prevBtn) prevBtn.disabled = page <= 1;
+  if (nextBtn) nextBtn.disabled = page >= totalPages || !total;
+  if (pageSizeSelect && String(pageSizeSelect.value) !== String(pageSize)) {
+    pageSizeSelect.value = String(pageSize);
+  }
+}
+
 function renderTicketList(tickets) {
   const list = document.getElementById('ticketList');
   const countEl = document.getElementById('ticketsCount');
   if (!list) return;
   tickets = tickets || [];
-  if (countEl) countEl.textContent = tickets.length;
+  if (countEl) countEl.textContent = appState.total != null ? appState.total : tickets.length;
   if (!tickets.length) {
     list.innerHTML = '<div class="text-center text-gray-400 text-sm py-12">No tickets found</div>';
     return;
@@ -67,12 +88,12 @@ function renderTicketList(tickets) {
 }
 
 function renderInsights(result) {
-  const tickets = result.tickets || [];
-  const total = result.total || 0;
-  const resolved = tickets.filter(function (t) { return t.status === 'Resolved'; }).length;
-  const active = tickets.filter(function (t) { return t.status && t.status !== 'Resolved'; }).length;
-  const escalated = tickets.filter(function (t) { return t.escalation && t.escalation !== 'Unassigned'; }).length;
-  const highPri = tickets.filter(function (t) { return getPriority(t) === 'High'; }).length;
+  const stats = result.stats || {};
+  const total = stats.total != null ? stats.total : (result.total || 0);
+  const resolved = stats.resolved || 0;
+  const active = stats.active || 0;
+  const escalated = stats.escalated || 0;
+  const highPri = stats.highPriority || 0;
 
   setText('totalTickets', total);
   setText('resolvedTickets', resolved);
@@ -80,9 +101,9 @@ function renderInsights(result) {
   setText('escalatedTickets', escalated);
   setText('highPriorityTickets', highPri);
 
-  renderStatusBreakdown(tickets, total);
-  renderChannelDistribution(tickets, total);
-  renderTopThemes(tickets);
+  renderStatusBreakdown(stats.byStatus || {}, total);
+  renderChannelDistribution(stats.byChannel || {}, total);
+  renderTopThemes(stats.byCategory || {});
   renderResolutionRate(resolved, total);
 }
 
@@ -91,7 +112,7 @@ function setText(id, val) {
   if (el) el.textContent = val;
 }
 
-function renderStatusBreakdown(tickets, total) {
+function renderStatusBreakdown(byStatus, total) {
   const el = document.getElementById('statusBreakdown');
   if (!el) return;
   const statuses = (appState.meta && appState.meta.statuses) || [];
@@ -100,14 +121,14 @@ function renderStatusBreakdown(tickets, total) {
     return;
   }
   el.innerHTML = statuses.map(function (s) {
-    const n = tickets.filter(function (t) { return t.status === s; }).length;
+    const n = byStatus[s] || 0;
     const pct = Math.round((n / total) * 100);
     return '<div><div class="flex justify-between text-xs mb-1"><span class="text-gray-700">' + escapeHtml(s) + '</span><span class="text-gray-500">' + n + ' (' + pct + '%)</span></div>' +
       '<div class="h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-blue-500 rounded-full" style="width:' + pct + '%"></div></div></div>';
   }).join('');
 }
 
-function renderChannelDistribution(tickets, total) {
+function renderChannelDistribution(byChannel, total) {
   const el = document.getElementById('channelDistribution');
   if (!el) return;
   const channels = (appState.meta && appState.meta.channels) || [];
@@ -116,10 +137,10 @@ function renderChannelDistribution(tickets, total) {
     return;
   }
   const max = Math.max(1, ...channels.map(function (c) {
-    return tickets.filter(function (t) { return t.channel === c; }).length;
+    return byChannel[c] || 0;
   }));
   el.innerHTML = channels.map(function (c) {
-    const n = tickets.filter(function (t) { return t.channel === c; }).length;
+    const n = byChannel[c] || 0;
     const w = Math.round((n / max) * 100);
     return '<div class="flex items-center gap-2"><span class="w-20 text-xs text-gray-600 truncate">' + escapeHtml(c) + '</span>' +
       '<div class="flex-1 h-1.5 bg-gray-100 rounded-full"><div class="h-full bg-green-500 rounded-full" style="width:' + w + '%"></div></div>' +
@@ -127,14 +148,10 @@ function renderChannelDistribution(tickets, total) {
   }).join('');
 }
 
-function renderTopThemes(tickets) {
+function renderTopThemes(byCategory) {
   const el = document.getElementById('topQueryThemes');
   if (!el) return;
-  const map = {};
-  tickets.forEach(function (t) {
-    const k = t.category || 'Other';
-    map[k] = (map[k] || 0) + 1;
-  });
+  const map = byCategory || {};
   const sorted = Object.keys(map).sort(function (a, b) { return map[b] - map[a]; }).slice(0, 5);
   if (!sorted.length) {
     el.innerHTML = '<p class="text-gray-400">No data</p>';

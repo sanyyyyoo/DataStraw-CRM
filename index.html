@@ -88,6 +88,27 @@
         <div id="ticketList" class="panel-scroll flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
           <div class="text-center text-gray-400 text-sm py-12">Loading tickets...</div>
         </div>
+        <div id="ticketPagination" class="shrink-0 px-3 py-2.5 border-t border-gray-100 flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <button id="prevPageBtn" type="button" disabled
+              class="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none">
+              Previous
+            </button>
+            <p id="pageInfo" class="text-xs text-gray-500 text-center">—</p>
+            <button id="nextPageBtn" type="button" disabled
+              class="px-2.5 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none">
+              Next
+            </button>
+          </div>
+          <label class="flex items-center justify-between gap-2 text-xs text-gray-500">
+            <span>Per page</span>
+            <select id="pageSizeSelect" class="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 bg-white">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       <!-- Center: detail -->

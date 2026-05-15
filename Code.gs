@@ -411,10 +411,45 @@ if (params.startDate && params.endDate) {
       return 0;
     });
 
+    const total = tickets.length;
+    const stats = computeTicketStats(tickets);
+
+    let selectedTicket = null;
+    if (params.selectedId) {
+      selectedTicket = tickets.find(t => t.id === params.selectedId) || null;
+    }
+
+    if (params.exportAll === true) {
+      return {
+        success: true,
+        tickets,
+        total,
+        stats,
+        selectedTicket
+      };
+    }
+
+    const pageSize = Math.min(
+      Math.max(parseInt(params.pageSize, 10) || 50, 1),
+      100
+    );
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(
+      Math.max(parseInt(params.page, 10) || 1, 1),
+      totalPages
+    );
+    const start = (page - 1) * pageSize;
+    const pageTickets = tickets.slice(start, start + pageSize);
+
     return {
       success: true,
-      tickets,
-      total: tickets.length
+      tickets: pageTickets,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      stats,
+      selectedTicket
     };
 
   } catch (error) {
@@ -423,9 +458,64 @@ if (params.startDate && params.endDate) {
       success: false,
       error: error.toString(),
       tickets: [],
-      total: 0
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      stats: null
     };
   }
+}
+
+function ticketPriority(ticket) {
+  if (ticket.escalation === 'Management') return 'High';
+  if (ticket.status === 'Pending') return 'Low';
+  return 'Medium';
+}
+
+function computeTicketStats(tickets) {
+  const byStatus = {};
+  const byChannel = {};
+  const byCategory = {};
+  let resolved = 0;
+  let active = 0;
+  let escalated = 0;
+  let highPriority = 0;
+
+  tickets.forEach(ticket => {
+    const status = ticket.status || 'Pending';
+    const channel = ticket.channel || '—';
+    const category = ticket.category || 'Other';
+
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    byChannel[channel] = (byChannel[channel] || 0) + 1;
+    byCategory[category] = (byCategory[category] || 0) + 1;
+
+    if (status === 'Resolved') {
+      resolved++;
+    } else {
+      active++;
+    }
+
+    if (ticket.escalation && ticket.escalation !== 'Unassigned') {
+      escalated++;
+    }
+
+    if (ticketPriority(ticket) === 'High') {
+      highPriority++;
+    }
+  });
+
+  return {
+    total: tickets.length,
+    resolved,
+    active,
+    escalated,
+    highPriority,
+    byStatus,
+    byChannel,
+    byCategory
+  };
 }
 
 /* ============================================================================

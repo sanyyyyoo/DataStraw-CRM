@@ -15,7 +15,15 @@ function selectTicket(ticketId) {
 }
 
 function applyFilters() {
+  appState.currentPage = 1;
   loadTickets();
+}
+
+function goToPage(page) {
+  appState.currentPage = page;
+  loadTickets();
+  var list = document.getElementById('ticketList');
+  if (list) list.scrollTop = 0;
 }
 
 function clearTicketDetail() {

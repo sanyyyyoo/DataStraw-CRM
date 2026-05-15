@@ -4,7 +4,11 @@ const appState = {
   selectedTicketId: null,
   selectedTicket: null,
   editMode: false,
-  meta: null
+  meta: null,
+  currentPage: 1,
+  pageSize: 50,
+  total: 0,
+  totalPages: 1
 };
 
 window.addEventListener('DOMContentLoaded', function () {
@@ -40,6 +44,17 @@ function attachListeners() {
       applyFilters();
     });
   });
+  document.getElementById('prevPageBtn')?.addEventListener('click', function () {
+    if (appState.currentPage > 1) goToPage(appState.currentPage - 1);
+  });
+  document.getElementById('nextPageBtn')?.addEventListener('click', function () {
+    if (appState.currentPage < appState.totalPages) goToPage(appState.currentPage + 1);
+  });
+  document.getElementById('pageSizeSelect')?.addEventListener('change', function (e) {
+    appState.pageSize = parseInt(e.target.value, 10) || 50;
+    appState.currentPage = 1;
+    loadTickets();
+  });
 }
 
 function debounce(fn, ms) {
@@ -74,8 +89,8 @@ function loadMeta() {
     .getAppMeta();
 }
 
-function loadTickets() {
-  var params = {
+function getFilterParams() {
+  return {
     query: document.getElementById('searchInput')?.value || '',
     status: document.getElementById('statusFilter')?.value || '',
     channel: document.getElementById('channelFilter')?.value || '',
@@ -83,24 +98,50 @@ function loadTickets() {
     startDate: document.getElementById('startDate')?.value || '',
     endDate: document.getElementById('endDate')?.value || ''
   };
+}
+
+function loadTickets() {
+  var params = getFilterParams();
+  params.page = appState.currentPage;
+  params.pageSize = appState.pageSize;
+  if (appState.selectedTicketId) {
+    params.selectedId = appState.selectedTicketId;
+  }
+  var list = document.getElementById('ticketList');
+  if (list && !list.dataset.loading) {
+    list.dataset.loading = '1';
+    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-12">Loading tickets...</div>';
+  }
   google.script.run
     .withSuccessHandler(function (result) {
+      if (list) delete list.dataset.loading;
       if (!result.success) {
         showNotification(result.error || 'Failed loading tickets', 'error');
         return;
       }
       appState.tickets = result.tickets || [];
+      appState.total = result.total || 0;
+      appState.currentPage = result.page || 1;
+      appState.pageSize = result.pageSize || appState.pageSize;
+      appState.totalPages = result.totalPages || 1;
       renderTicketList(appState.tickets);
+      renderPagination(result);
       renderInsights(result);
-      var hasSelection = appState.selectedTicketId && appState.tickets.some(function (t) {
+      if (result.selectedTicket) {
+        appState.selectedTicket = result.selectedTicket;
+      }
+      var onPage = appState.selectedTicketId && appState.tickets.some(function (t) {
         return t.id === appState.selectedTicketId;
       });
-      if (appState.tickets.length && !hasSelection) {
+      var stillSelected = appState.selectedTicketId && appState.selectedTicket;
+      if (appState.tickets.length && !stillSelected) {
         selectTicket(appState.tickets[0].id);
-      } else if (hasSelection) {
-        appState.selectedTicket = appState.tickets.find(function (t) {
-          return t.id === appState.selectedTicketId;
-        });
+      } else if (stillSelected) {
+        if (onPage) {
+          appState.selectedTicket = appState.tickets.find(function (t) {
+            return t.id === appState.selectedTicketId;
+          });
+        }
         if (appState.selectedTicket && !appState.editMode) {
           renderTicketDetailView(appState.selectedTicket);
           showViewModeButtons();
@@ -111,29 +152,43 @@ function loadTickets() {
       }
     })
     .withFailureHandler(function (err) {
+      if (list) delete list.dataset.loading;
       showNotification(err.message || 'Server error', 'error');
     })
     .getTickets(params);
 }
 
 function exportCsv() {
-  if (!appState.tickets.length) {
-    showNotification('No tickets to export', 'error');
-    return;
-  }
-  var headers = ['Ticket ID', 'Customer Name', 'Email', 'Phone', 'Order ID', 'Status', 'Channel', 'Category', 'Description', 'Escalation', 'Created At'];
-  var rows = appState.tickets.map(function (t) {
-    return [t.id, t.customerName, t.email, t.phone, t.orderId, t.status, t.channel, t.category, t.description, t.escalation, t.createdAt];
-  });
-  var csv = [headers].concat(rows).map(function (row) {
-    return row.map(function (v) {
-      return '"' + String(v || '').replace(/"/g, '""') + '"';
-    }).join(',');
-  }).join('\n');
-  var a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'tickets.csv';
-  a.click();
-  showNotification('CSV exported');
+  var params = getFilterParams();
+  params.exportAll = true;
+  var btn = document.getElementById('exportCsvButton');
+  if (btn) { btn.textContent = 'Exporting…'; btn.disabled = true; }
+  google.script.run
+    .withSuccessHandler(function (result) {
+      if (btn) { btn.textContent = 'Export CSV'; btn.disabled = false; }
+      if (!result.success || !result.tickets || !result.tickets.length) {
+        showNotification(result.error || 'No tickets to export', 'error');
+        return;
+      }
+      var headers = ['Ticket ID', 'Customer Name', 'Email', 'Phone', 'Order ID', 'Status', 'Channel', 'Category', 'Description', 'Escalation', 'Created At'];
+      var rows = result.tickets.map(function (t) {
+        return [t.id, t.customerName, t.email, t.phone, t.orderId, t.status, t.channel, t.category, t.description, t.escalation, t.createdAt];
+      });
+      var csv = [headers].concat(rows).map(function (row) {
+        return row.map(function (v) {
+          return '"' + String(v || '').replace(/"/g, '""') + '"';
+        }).join(',');
+      }).join('\n');
+      var a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      a.download = 'tickets.csv';
+      a.click();
+      showNotification('Exported ' + result.tickets.length + ' tickets');
+    })
+    .withFailureHandler(function (err) {
+      if (btn) { btn.textContent = 'Export CSV'; btn.disabled = false; }
+      showNotification(err.message || 'Export failed', 'error');
+    })
+    .getTickets(params);
 }
 </script>
