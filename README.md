@@ -1,6 +1,6 @@
 # DataStraw Support CRM
 
-A web-based customer support ticketing CRM built with **Google Apps Script**, **Google Sheets**, and a modular **HTML/CSS/JavaScript** frontend. Developed as part of the **Datastraw AI + Tech Intern Hiring Assessment**.
+A web-based customer support ticketing CRM built with **Google Apps Script**, **Google Sheets**, and a modular **HTML/CSS/JavaScript** frontend.
 
 | Resource | Link |
 |----------|------|
@@ -177,6 +177,3 @@ See [LIMITATIONS.md](./LIMITATIONS.md).
 
 ---
 
-## License and attribution
-
-Built for the Datastraw hiring assessment. Update the demo video link in this README when your recording is ready.
